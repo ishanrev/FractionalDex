@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@thirdweb-dev/contracts": "^3.8.0",
+    "thirdweb": "^5.34.3",
     "zksync-web3": "^0.14.3"
   }
 }
