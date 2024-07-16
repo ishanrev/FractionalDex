@@ -6,8 +6,8 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "./LiquidityToken.sol";
 import "./AssetToken.sol";
-
-contract CombinedDex {
+ 
+contract NFTDex {
     struct LockedNFT {
         address nftCollectionAddress;
         address owner;
@@ -26,7 +26,6 @@ contract CombinedDex {
     );
 
     AssetToken public assetToken;
-    LiquidityToken public liquidityToken;
     LockedNFT private lockedNFT;
     bool private isLocked = false;
     uint256 valuation;
@@ -37,7 +36,6 @@ contract CombinedDex {
     constructor(
         string memory _assetTokenName,
         string memory _assetTokenSymbol,
-        address _liquidityToken,
         address payable _platformFeeAddress
     ) {
         assetToken = new AssetToken(_assetTokenName, _assetTokenSymbol);
@@ -46,8 +44,7 @@ contract CombinedDex {
 
         //Remember the _token should
         assetToken.approve(address(this), type(uint256).max);
-        liquidityToken = LiquidityToken(_liquidityToken);
-        liquidityToken.approve(address(this), type(uint256).max);
+       
         platformFeeAddress = _platformFeeAddress;
     }
 
@@ -108,7 +105,7 @@ contract CombinedDex {
         if (tokenReserve == 0) {
             assetToken.transferFrom(msg.sender, address(this), _amount);
             _liquidity = msg.value;
-            liquidityToken.mint(msg.sender, _liquidity);
+            assetToken.mint(msg.sender, _liquidity);
         } else {
             uint256 reservedEth = balanceInEth - msg.value;
             require(
@@ -122,8 +119,8 @@ contract CombinedDex {
             );
             assetToken.transferFrom(msg.sender, address(this), _amount);
             uint256 numLiquidityTokens = (msg.value *
-                liquidityToken.totalSupply()) / reservedEth;
-            liquidityToken.mint(msg.sender, numLiquidityTokens);
+                assetToken.totalSupply()) / reservedEth;
+            assetToken.mint(msg.sender, numLiquidityTokens);
             _liquidity = numLiquidityTokens;
         }
         return _liquidity;
@@ -145,6 +142,25 @@ contract CombinedDex {
     Theres no need to unlock an NFT 
 
     */
+
+   
+    function removeLiquidity(
+        uint256 _amount
+    ) public returns (uint256, uint256) {
+        uint256 ethBalance = address(this).balance;
+        uint256 tokenReserve = getTokensInContract();
+        uint256 ethAmount = (_amount * ethBalance) /
+            assetToken.totalSupply();
+        uint256 tokenAmount = (tokenReserve * ethAmount) / ethBalance;
+        // Transfer the calculated amount of tokens to the user
+        assetToken.burn(msg.sender, _amount);
+        assetToken.transfer(msg.sender, tokenAmount);
+        // Transfer the calculated amount of ETH to the user
+        payable(msg.sender).transfer(ethAmount);
+        // Burn the liquidity tokens from the user's balance
+        return (ethAmount, tokenAmount);
+    }
+
     function unlockNFT() external {
         require(isLocked, "NFT is not locked");
         require(
@@ -164,22 +180,6 @@ contract CombinedDex {
         delete lockedNFT;
     }
 
-    function removeLiquidity(
-        uint256 _amount
-    ) public returns (uint256, uint256) {
-        uint256 ethBalance = address(this).balance;
-        uint256 tokenReserve = getTokensInContract();
-        uint256 ethAmount = (_amount * ethBalance) /
-            liquidityToken.totalSupply();
-        uint256 tokenAmount = (tokenReserve * ethAmount) / ethBalance;
-        // Transfer the calculated amount of tokens to the user
-        assetToken.transfer(msg.sender, tokenAmount);
-        // Transfer the calculated amount of ETH to the user
-        payable(msg.sender).transfer(ethAmount);
-        // Burn the liquidity tokens from the user's balance
-        liquidityToken.burn(msg.sender, _amount);
-        return (ethAmount, tokenAmount);
-    }
 
     function swapMainforNative() public payable returns (uint256) {
         uint256 ethInputAfterSwapFees = (msg.value *
