@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
+
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "./LiquidityToken.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "./AssetToken.sol";
 
 contract CombinedDex {
@@ -26,7 +27,6 @@ contract CombinedDex {
     );
 
     AssetToken public assetToken;
-    LiquidityToken public liquidityToken;
     LockedNFT private lockedNFT;
     bool private isLocked = false;
     uint256 valuation;
@@ -37,7 +37,6 @@ contract CombinedDex {
     constructor(
         string memory _assetTokenName,
         string memory _assetTokenSymbol,
-        address _liquidityToken,
         address payable _platformFeeAddress
     ) {
         assetToken = new AssetToken(_assetTokenName, _assetTokenSymbol);
@@ -46,8 +45,7 @@ contract CombinedDex {
 
         //Remember the _token should
         assetToken.approve(address(this), type(uint256).max);
-        liquidityToken = LiquidityToken(_liquidityToken);
-        liquidityToken.approve(address(this), type(uint256).max);
+
         platformFeeAddress = _platformFeeAddress;
     }
 
@@ -108,7 +106,7 @@ contract CombinedDex {
         if (tokenReserve == 0) {
             assetToken.transferFrom(msg.sender, address(this), _amount);
             _liquidity = msg.value;
-            liquidityToken.mint(msg.sender, _liquidity);
+            assetToken.mint(msg.sender, _liquidity);
         } else {
             uint256 reservedEth = balanceInEth - msg.value;
             require(
@@ -122,8 +120,8 @@ contract CombinedDex {
             );
             assetToken.transferFrom(msg.sender, address(this), _amount);
             uint256 numLiquidityTokens = (msg.value *
-                liquidityToken.totalSupply()) / reservedEth;
-            liquidityToken.mint(msg.sender, numLiquidityTokens);
+                assetToken.totalSupply()) / reservedEth;
+            assetToken.mint(msg.sender, numLiquidityTokens);
             _liquidity = numLiquidityTokens;
         }
         return _liquidity;
@@ -145,6 +143,24 @@ contract CombinedDex {
     Theres no need to unlock an NFT 
 
     */
+
+    function removeLiquidity(uint256 _amount)
+        public
+        returns (uint256, uint256)
+    {
+        uint256 ethBalance = address(this).balance;
+        uint256 tokenReserve = getTokensInContract();
+        uint256 ethAmount = (_amount * ethBalance) / assetToken.totalSupply();
+        uint256 tokenAmount = (tokenReserve * ethAmount) / ethBalance;
+        // Transfer the calculated amount of tokens to the user
+        assetToken.burn(msg.sender, _amount);
+        assetToken.transfer(msg.sender, tokenAmount);
+        // Transfer the calculated amount of ETH to the user
+        payable(msg.sender).transfer(ethAmount);
+        // Burn the liquidity tokens from the user's balance
+        return (ethAmount, tokenAmount);
+    }
+
     function unlockNFT() external {
         require(isLocked, "NFT is not locked");
         require(
@@ -164,30 +180,15 @@ contract CombinedDex {
         delete lockedNFT;
     }
 
-    function removeLiquidity(
-        uint256 _amount
-    ) public returns (uint256, uint256) {
-        uint256 ethBalance = address(this).balance;
-        uint256 tokenReserve = getTokensInContract();
-        uint256 ethAmount = (_amount * ethBalance) /
-            liquidityToken.totalSupply();
-        uint256 tokenAmount = (tokenReserve * ethAmount) / ethBalance;
-        // Transfer the calculated amount of tokens to the user
-        assetToken.transfer(msg.sender, tokenAmount);
-        // Transfer the calculated amount of ETH to the user
-        payable(msg.sender).transfer(ethAmount);
-        // Burn the liquidity tokens from the user's balance
-        liquidityToken.burn(msg.sender, _amount);
-        return (ethAmount, tokenAmount);
-    }
-
     function swapMainforNative() public payable returns (uint256) {
         uint256 ethInputAfterSwapFees = (msg.value *
-            (10000 - liquidityProviderSwapFees + platformSwapFees)) / 10000;
+            (10000 - liquidityProviderSwapFees - platformSwapFees)) / 10000;
         uint256 ethBalance = address(this).balance - ethInputAfterSwapFees;
         uint256 tokenReserve = getTokensInContract();
         uint256 tokenReturn = (ethInputAfterSwapFees * tokenReserve) /
             (ethBalance + ethInputAfterSwapFees);
+        require(tokenReserve > tokenReturn, "Not enough tokens in the reserve");
+
         assetToken.transfer(msg.sender, tokenReturn);
 
         /*Actually pay the platform and the liquidity providers money 
@@ -204,9 +205,11 @@ contract CombinedDex {
         return tokenReturn;
     }
 
-    function swapNativeForMain(
-        uint256 _tokenAmount
-    ) public payable returns (uint256) {
+    function swapNativeForMain(uint256 _tokenAmount)
+        public
+        payable
+        returns (uint256)
+    {
         uint256 ethBalance = address(this).balance;
         uint256 tokenReserve = getTokensInContract();
         uint256 ethReturn = (ethBalance * _tokenAmount) /
@@ -214,6 +217,8 @@ contract CombinedDex {
         assetToken.transferFrom(msg.sender, address(this), _tokenAmount);
         uint256 ethReturnAfterSwapFees = (ethReturn *
             (10000 - liquidityProviderSwapFees + platformSwapFees)) / 10000;
+        require(ethBalance > ethReturnAfterSwapFees, "Not enough ETH in the reserve");
+
         payable(msg.sender).transfer(ethReturnAfterSwapFees);
 
         uint256 platformFees = (ethReturn * (platformSwapFees)) / 10000;
@@ -221,5 +226,32 @@ contract CombinedDex {
         payable(platformFeeAddress).transfer(platformFees);
 
         return ethReturn;
+    }
+
+    function getMainForNativeTokens(uint256 _main)
+        public
+        view
+        returns (uint256)
+    {
+        uint256 ethInputAfterSwapFees = (_main *
+            (10000 - liquidityProviderSwapFees - platformSwapFees)) / 10000;
+        uint256 ethBalance = address(this).balance;
+        uint256 tokenReserve = getTokensInContract();
+        uint256 tokenReturn = (ethInputAfterSwapFees * tokenReserve) /
+            (ethBalance + ethInputAfterSwapFees);
+        return tokenReturn;
+    }
+
+    function getNativeForMainTokens(uint256 _native)
+        public
+        view
+        returns (uint256)
+    {
+        uint256 ethBalance = address(this).balance;
+        uint256 tokenReserve = getTokensInContract();
+        uint256 ethReturn = (ethBalance * _native) / (tokenReserve + _native);
+        uint256 ethReturnAfterSwapFees = (ethReturn *
+            (10000 - liquidityProviderSwapFees + platformSwapFees)) / 10000;
+        return ethReturnAfterSwapFees;
     }
 }

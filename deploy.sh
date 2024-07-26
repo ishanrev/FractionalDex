@@ -1,0 +1,1 @@
+npx thirdweb deploy -k X3znaDZx0Ndp59g4yffwsnXbjqmL_27bMUWm0C9eGP1wZ3qsMyWy42Bj_1nXIYtPUr9LZjhPKQJb7Zj6CR68TQ
