@@ -1,47 +1,35 @@
-## Getting Started
+# 🚀 Dexify - Fractionalized NFT Liquidity Platform
 
-Create a project using this example:
+## 🔗 Live Demo
+[Dexify](https://dexify.vercel.app)
 
-```bash
-npx thirdweb create --contract --template hardhat-javascript-starter
-```
+## 📜 Overview
+Dexify is a decentralized platform designed to **fractionalize NFTs**, allowing them to be traded as liquid assets. By wrapping NFTs into **automated market maker (AMM) based decentralized exchanges (DEXs)**, the platform generates liquidity and enables seamless fractional ownership through custom **ERC20 tokens**. 
 
-You can start editing the page by modifying `contracts/Contract.sol`.
+With Dexify, NFT owners can tokenize their assets into tradeable shares, making it easier for investors to buy and sell fractions of high-value NFTs. The platform leverages **Solidity smart contracts**, **Ethers.js**, and **Next.js** to provide a seamless and secure Web3 experience.
 
-To add functionality to your contracts, you can use the `@thirdweb-dev/contracts` package which provides base contracts and extensions to inherit. The package is already installed with this project. Head to our [Contracts Extensions Docs](https://portal.thirdweb.com/contractkit) to learn more.
+## 🔧 Features
+- **Fractionalized NFT Ownership** - Wrap NFTs into ERC20-based liquidity pools, allowing multiple users to own and trade fractions.
+- **AMM-Based DEXs** - Each fractionalized NFT has its own custom liquidity pool for efficient trading.
+- **Smart Contract Integration** - Secure and transparent issuance of fractional tokens through Solidity contracts.
+- **Seamless Web3 Experience** - Uses **Thirdweb SDK**, **Ethers.js**, and **Supabase** for blockchain interactions and data management.
+- **Enhanced NFT Liquidity** - Enables NFT holders to create liquidity by converting NFTs into **fractional shares**.
 
-## Building the project
+## 🛠️ Tech Stack
+- **Blockchain & Smart Contracts:** Solidity, Ethers.js, Thirdweb SDK
+- **Frontend:** Next.js, TypeScript
+- **Database:** Supabase (for metadata and user interactions)
+- **Deployment:** Vercel
 
-After any changes to the contract, run:
+## 📜 Smart Contracts
+- **Fractionalization Contract**: Wraps an NFT and mints equivalent ERC20 tokens for trading.
+- **Liquidity Pool Contract**: Implements an **AMM model** to allow seamless trading between NFT fractions.
+- **Governance & Buyback Mechanism** *(Future Enhancements)*: Provides a way for NFT owners to reclaim full ownership by purchasing back all fractional shares.
 
-```bash
-npm run build
-# or
-yarn build
-```
+## 💡 Future Enhancements
+- Cross-chain NFT fractionalization for **multi-chain liquidity**.
+- Governance model for **fractional token holders** to vote on key decisions.
+- Advanced analytics dashboard to track **NFT liquidity pool performance**.
 
-to compile your contracts. This will also detect the [Contracts Extensions Docs](https://portal.thirdweb.com/contractkit) detected on your contract.
-
-## Deploying Contracts
-
-When you're ready to deploy your contracts, just run one of the following command to deploy you're contracts:
-
-```bash
-npm run deploy
-# or
-yarn deploy
-```
-
-## Releasing Contracts
-
-If you want to release a version of your contracts publicly, you can use one of the followings command:
-
-```bash
-npm run release
-# or
-yarn release
-```
-
-## Join our Discord!
-
-For any questions, suggestions, join our discord at [https://discord.gg/thirdweb](https://discord.gg/thirdweb).
+## 📜 License
+This project is licensed under the **MIT License**.
